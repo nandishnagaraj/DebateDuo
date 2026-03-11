@@ -1,18 +1,26 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { DebateResponse } from "@/lib/types";
+import type { DebateResponse, DebateParameters, DebateStyle } from "@/lib/types";
 import { DebateColumn } from "@/components/DebateColumn";
 
 export default function Page() {
   const [topic, setTopic] = useState<string>(
-    "Should organizations adopt a 4-day workweek as the default?"
+    "Should organizations adopt a 4-day workweek as default?"
   );
   const [data, setData] = useState<DebateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentTurn, setCurrentTurn] = useState<{ round: number; side: "pro" | "con" } | null>(null);
   const [isTyping, setIsTyping] = useState(false);
+  
+  // Debate parameters
+  const [parameters, setParameters] = useState<DebateParameters>({
+    rounds: 3,
+    responseLength: 380,
+    temperature: 0.7,
+    style: "academic"
+  });
 
   const rounds = useMemo(() => data?.rounds ?? [], [data]);
 
@@ -23,8 +31,8 @@ export default function Page() {
     setIsLoading(true);
 
     try {
-      // Start turn-by-turn simulation
-      for (let round = 1; round <= 3; round++) {
+      // Start turn-by-turn simulation with configurable rounds
+      for (let round = 1; round <= parameters.rounds; round++) {
         // Pro turn
         setCurrentTurn({ round, side: "pro" });
         setIsTyping(true);
@@ -37,7 +45,11 @@ export default function Page() {
             topic, 
             round, 
             side: "pro",
-            priorRounds: data?.rounds?.slice(0, round - 1) || []
+            priorRounds: data?.rounds?.slice(0, round - 1) || [],
+            responseLength: parameters.responseLength,
+            temperature: parameters.temperature,
+            style: parameters.style,
+            maxRounds: parameters.rounds
           })
         });
         
@@ -73,7 +85,11 @@ export default function Page() {
             topic, 
             round, 
             side: "con",
-            priorRounds: data?.rounds?.slice(0, round - 1) || []
+            priorRounds: data?.rounds?.slice(0, round - 1) || [],
+            responseLength: parameters.responseLength,
+            temperature: parameters.temperature,
+            style: parameters.style,
+            maxRounds: parameters.rounds
           })
         });
         
@@ -151,6 +167,99 @@ export default function Page() {
         )}
       </div>
 
+      {/* Debate Parameters */}
+      <div className="card" style={{ marginTop: 14 }}>
+        <div style={{ fontWeight: 700, marginBottom: 12 }}>Debate Parameters</div>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+          gap: 16 
+        }}>
+          {/* Number of Rounds */}
+          <div>
+            <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 600 }}>
+              🔁 Number of rounds: {parameters.rounds}
+            </label>
+            <input
+              type="range"
+              min="1"
+              max="5"
+              value={parameters.rounds}
+              onChange={(e) => setParameters(prev => ({ ...prev, rounds: parseInt(e.target.value) }))}
+              style={{ width: '100%', marginBottom: 4 }}
+              disabled={isLoading}
+            />
+            <div className="sub">1-5 rounds</div>
+          </div>
+
+          {/* Response Length */}
+          <div>
+            <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 600 }}>
+              📏 Response length: {parameters.responseLength} tokens
+            </label>
+            <input
+              type="range"
+              min="100"
+              max="800"
+              step="50"
+              value={parameters.responseLength}
+              onChange={(e) => setParameters(prev => ({ ...prev, responseLength: parseInt(e.target.value) }))}
+              style={{ width: '100%', marginBottom: 4 }}
+              disabled={isLoading}
+            />
+            <div className="sub">100-800 tokens</div>
+          </div>
+
+          {/* Temperature */}
+          <div>
+            <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 600 }}>
+              🌡 Temperature: {parameters.temperature.toFixed(1)}
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.1"
+              value={parameters.temperature}
+              onChange={(e) => setParameters(prev => ({ ...prev, temperature: parseFloat(e.target.value) }))}
+              style={{ width: '100%', marginBottom: 4 }}
+              disabled={isLoading}
+            />
+            <div className="sub">0.0 (focused) - 2.0 (creative)</div>
+          </div>
+
+          {/* Debate Style */}
+          <div>
+            <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 600 }}>
+              🧠 Debate style
+            </label>
+            <select
+              value={parameters.style}
+              onChange={(e) => setParameters(prev => ({ ...prev, style: e.target.value as DebateStyle }))}
+              style={{ 
+                width: '100%', 
+                padding: '8px 12px', 
+                borderRadius: '8px',
+                border: '1px solid var(--border)',
+                background: 'rgba(3, 7, 18, 0.55)',
+                color: 'var(--text)',
+                fontSize: '14px'
+              }}
+              disabled={isLoading}
+            >
+              <option value="academic">🎓 Academic</option>
+              <option value="aggressive">⚔️ Aggressive</option>
+              <option value="diplomatic">🤝 Diplomatic</option>
+            </select>
+            <div className="sub">
+              {parameters.style === "academic" && "Evidence-based, formal tone"}
+              {parameters.style === "aggressive" && "Strong, persuasive language"}
+              {parameters.style === "diplomatic" && "Respectful, collaborative approach"}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="grid">
         <DebateColumn
           title="Agent A"
@@ -160,6 +269,7 @@ export default function Page() {
           isLoading={isLoading}
           currentTurn={currentTurn}
           isTyping={isTyping}
+          totalRounds={parameters.rounds}
         />
         <DebateColumn
           title="Agent B"
@@ -169,6 +279,7 @@ export default function Page() {
           isLoading={isLoading}
           currentTurn={currentTurn}
           isTyping={isTyping}
+          totalRounds={parameters.rounds}
         />
       </div>
     </main>

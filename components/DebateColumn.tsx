@@ -8,15 +8,23 @@ export function DebateColumn(props: {
   isLoading: boolean;
   currentTurn?: { round: number; side: "pro" | "con" } | null;
   isTyping?: boolean;
+  totalRounds?: number;
 }) {
-  const { title, badge, rounds, side, isLoading, currentTurn, isTyping } = props;
+  const { title, badge, rounds, side, isLoading, currentTurn, isTyping, totalRounds = 3 } = props;
 
-  const getRoundName = (round: number) => {
-    switch (round) {
-      case 1: return "Opening";
-      case 2: return "Rebuttal";
-      case 3: return "Closing";
-      default: return `Round ${round}`;
+  const getRoundName = (round: number, totalRounds: number = 3) => {
+    if (totalRounds <= 3) {
+      switch (round) {
+        case 1: return "Opening";
+        case 2: return totalRounds === 2 ? "Closing" : "Rebuttal";
+        case 3: return "Closing";
+        default: return `Round ${round}`;
+      }
+    } else {
+      // For more than 3 rounds, use numbered rounds
+      if (round === 1) return "Opening";
+      if (round === totalRounds) return "Closing";
+      return `Round ${round}`;
     }
   };
 
@@ -40,7 +48,7 @@ export function DebateColumn(props: {
 
       {currentTurn && currentTurn.side === side && (
         <div className="turn">
-          <div className="turnHeader">{getRoundName(currentTurn.round)} - {isTyping ? "Thinking..." : "Responding"}</div>
+          <div className="turnHeader">{getRoundName(currentTurn.round, totalRounds)} - {isTyping ? "Thinking..." : "Responding"}</div>
           {isTyping && (
             <div className="typing-indicator">
               <span></span>
@@ -53,7 +61,7 @@ export function DebateColumn(props: {
 
       {rounds.map((r) => (
         <div key={`${side}-${r.round}`} className="turn">
-          <div className="turnHeader">{getRoundName(r.round)}</div>
+          <div className="turnHeader">{getRoundName(r.round, totalRounds)}</div>
           <div className="prewrap">{side === "pro" ? r.pro : r.con}</div>
         </div>
       ))}

@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { agentSystemPrompt, buildAgentUserPrompt } from "@/lib/prompts";
-import type { DebateRound } from "@/lib/types";
+import type { DebateRound, DebateStyle } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -30,10 +30,13 @@ async function generateTurn(args: {
   round: number;
   priorPro: string[];
   priorCon: string[];
+  responseLength?: number;
+  temperature?: number;
+  style?: DebateStyle;
 }) {
-  const { side, topic, round, priorPro, priorCon } = args;
+  const { side, topic, round, priorPro, priorCon, responseLength = 380, temperature = 0.7, style = "academic" } = args;
 
-  const system = agentSystemPrompt(side);
+  const system = agentSystemPrompt(side, style);
   const user = buildAgentUserPrompt({ topic, round, priorPro, priorCon });
 
   const resp = await client.chat.completions.create({
@@ -42,8 +45,8 @@ async function generateTurn(args: {
       { role: "system", content: system },
       { role: "user", content: user }
     ],
-    // Keep outputs reasonably bounded.
-    max_tokens: 380
+    max_tokens: responseLength,
+    temperature: temperature
   });
 
   return resp.choices[0]?.message?.content?.trim() || "";
@@ -58,9 +61,23 @@ export async function POST(req: Request) {
       round?: number; 
       side?: "pro" | "con";
       priorRounds?: DebateRound[];
+      responseLength?: number;
+      temperature?: number;
+      style?: DebateStyle;
+      maxRounds?: number;
     };
     
-    const { topic, round = 1, side = "pro", priorRounds = [] } = body;
+    const { 
+      topic, 
+      round = 1, 
+      side = "pro", 
+      priorRounds = [], 
+      responseLength = 380,
+      temperature = 0.7,
+      style = "academic",
+      maxRounds = 3
+    } = body;
+    
     const trimmedTopic = (topic || "").trim();
 
     if (trimmedTopic.length < 8) {
@@ -71,8 +88,20 @@ export async function POST(req: Request) {
       return new NextResponse("Invalid side. Must be 'pro' or 'con'.", { status: 400 });
     }
 
-    if (!round || round < 1 || round > 3) {
-      return new NextResponse("Invalid round. Must be between 1 and 3.", { status: 400 });
+    if (!round || round < 1 || round > maxRounds) {
+      return new NextResponse(`Invalid round. Must be between 1 and ${maxRounds}.`, { status: 400 });
+    }
+
+    if (responseLength && (responseLength < 100 || responseLength > 1000)) {
+      return new NextResponse("Response length must be between 100 and 1000 tokens.", { status: 400 });
+    }
+
+    if (temperature && (temperature < 0 || temperature > 2)) {
+      return new NextResponse("Temperature must be between 0 and 2.", { status: 400 });
+    }
+
+    if (style && !["academic", "aggressive", "diplomatic"].includes(style)) {
+      return new NextResponse("Style must be 'academic', 'aggressive', or 'diplomatic'.", { status: 400 });
     }
 
     // Extract prior arguments from previous rounds
@@ -84,7 +113,10 @@ export async function POST(req: Request) {
       topic: trimmedTopic, 
       round, 
       priorPro, 
-      priorCon 
+      priorCon,
+      responseLength,
+      temperature,
+      style
     });
 
     return NextResponse.json({ content });

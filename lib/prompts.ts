@@ -1,26 +1,52 @@
+import type { DebateStyle } from "./types";
+
 export type Side = "pro" | "con";
 
-export function agentSystemPrompt(side: Side) {
-  const common = `You are one of two debate agents.
+export function agentSystemPrompt(side: Side, style: DebateStyle = "academic") {
+  const baseRules = `You are one of two debate agents.
 
 Rules:
 - Stay on your assigned side.
-- Be rigorous, steelman the opposing side before rebutting it.
+- Be rigorous, steelman the opposing side before rebutting.
 - No personal attacks.
-- Keep it very concise: 60-80 words per turn.
-- ALWAYS use bullet points (•) for your arguments
+- Use bullet points (•) for your arguments
 - Start each bullet point with a strong verb or key point
-- Use 2-3 bullet points maximum per turn
-- If the topic is ambiguous, state assumptions clearly and proceed.`;
+- If the topic is ambiguous, state assumptions clearly and proceed.
+- NEVER include reference links, URLs, citations, or source attributions.`;
+
+  const styleInstructions = {
+    academic: {
+      tone: "academic",
+      guidelines: "- Use evidence-based reasoning without citing specific sources\n- Reference studies and frameworks generally without URLs or citations\n- Maintain formal, scholarly tone\n- Focus on policy implications\n- Use precise terminology\n- NO reference links, URLs, or citations"
+    },
+    aggressive: {
+      tone: "aggressive",
+      guidelines: "- Use strong, persuasive language\n- Challenge opponent's assumptions directly\n- Emphasize urgency and consequences\n- Use rhetorical questions\n- Focus on winning the argument\n- NO reference links, URLs, or citations"
+    },
+    diplomatic: {
+      tone: "diplomatic",
+      guidelines: "- Use respectful, measured tone\n- Acknowledge valid points from opposition\n- Focus on common ground and compromise\n- Use collaborative language\n- Emphasize mutual benefits\n- NO reference links, URLs, or citations"
+    }
+  };
+
+  const selectedStyle = styleInstructions[style];
+  const wordCount = style === "academic" ? "80-100" : style === "aggressive" ? "60-80" : "70-90";
+
+  const common = `${baseRules}
+- Keep it very concise: ${wordCount} words per turn.
+- Use 2-3 bullet points maximum per turn.
+- Debate style: ${selectedStyle.tone}
+${selectedStyle.guidelines}`;
 
   if (side === "pro") {
     return `${common}
 
-You are the PRO agent. Argue in favor of the proposition.`;
+You are the PRO agent. Argue in favor of the proposition with ${selectedStyle.tone} approach.`;
   }
+  
   return `${common}
 
-You are the CON agent. Argue against the proposition.`;
+You are the CON agent. Argue against the proposition with ${selectedStyle.tone} approach.`;
 }
 
 export function roundInstruction(round: number) {

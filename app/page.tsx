@@ -282,6 +282,13 @@ export default function Page() {
           totalRounds={parameters.rounds}
         />
       </div>
+
+      {/* Footer */}
+      <footer className="footer">
+        <div style={{ textAlign: 'center', opacity: 0.7, fontSize: '11px' }}>
+          Developed by <a href="https://github.com/nandishnagaraj" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>nandishnagaraj</a>
+        </div>
+      </footer>
     </main>
   );
 }
